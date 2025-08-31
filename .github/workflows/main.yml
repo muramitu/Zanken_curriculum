@@ -1,0 +1,91 @@
+import random
+
+# 出せる手の辞書
+hand_dict = {
+    "0": "グー",
+    "2": "チョキ",
+    "5": "パー"
+}
+
+class Player:
+    def __init__(self, hands, name):
+        self.hands = hands
+        self.name = name
+        self.hand = ""   # 初期値は空文字とする
+        self.wins = 0    # 勝利数をカウントする内容を追加する
+
+    def random_select(self):
+        """相手用：手をランダムに決定"""
+        self.hand = random.choice(list(self.hands.keys()))
+
+    def select(self):
+        """プレイヤー用：手を入力して決定"""
+        while True:
+            choice = input("じゃんけん ⇒ (0:グー, 2:チョキ, 5:パー, q:終了): ")
+            if choice in list(self.hands.keys()) + ["q"]:
+                self.hand = choice
+                return
+            else:
+                print("想定外の手です。{}の中から入力してください。"
+                      .format(list(self.hands.keys()) + ["q"]))
+
+    def show(self):
+        """現在の手を表示"""
+        if self.hand in self.hands:
+            print("{}の手：{}".format(self.name, self.hands[self.hand]))
+        elif self.hand == "q":
+            print("{}はゲーム終了を選択しました。".format(self.name))
+
+    def win_lose_check(self, enemy_hand):
+        """勝敗判定: 勝ちなら True, 負け・あいこは False"""
+        if self.hand == enemy_hand:
+            return None  # 引き分け
+        if (self.hand == "0" and enemy_hand == "2") or \
+           (self.hand == "2" and enemy_hand == "5") or \
+           (self.hand == "5" and enemy_hand == "0"):
+            return True
+        return False
+
+
+# ===== メインフロー =====
+def main():
+    print("Game Start")
+
+    player = Player(hand_dict, "あなた")
+    computer = Player(hand_dict, "コンピュータ")
+
+    while True:
+        # プレイヤーの手を決定する
+                player.select()
+        if player.hand == "q":
+            print("強制終了します")
+            break
+
+        # コンピュータの手を決定する
+        computer.random_select()
+
+        # 出す手を表示する
+        player.show()
+        computer.show()
+
+        # 勝敗判定
+        result = player.win_lose_check(computer.hand)
+
+        if result is None:
+            print("Draw!!!")
+        elif result:
+            print("You Win!!!")
+            player.wins += 1
+        else:
+            print("You Lose!!!")
+
+        print("現在の勝利数:", player.wins)
+
+        # 勝利数が3を超えたらゲーム終了
+        if player.wins > 3:
+            print("🎉 3勝達成！ゲーム終了！")
+            break
+
+
+if __name__ == "__main__":
+    main()
