@@ -1,0 +1,212 @@
+import random
+import time
+import os
+
+# ----------------------
+# Card クラス
+# ----------------------
+class Card:
+    def __init__(self, suit, value):
+        self.suit = suit
+        self.value_str = value
+
+    def __str__(self):
+        return f"{self.value_str}{self.suit}"
+
+    def get_value(self):
+        if self.value_str in ['J', 'Q', 'K']:
+            return 10
+        elif self.value_str == 'A':
+            return 11
+        else:
+            return int(self.value_str)
+
+    def ascii_art(self, hidden=False):
+        if hidden:
+            top = "┌─────┐"
+            middle = "| ??? |"
+            bottom = "└─────┘"
+        else:
+            top = "┌─────┐"
+            middle = f"|{self.value_str:<2} {self.suit} |"
+            bottom = "└─────┘"
+        return [top, middle, bottom]
+
+# ----------------------
+# Deck クラス
+# ----------------------
+class Deck:
+    suits = ['♠', '♥', '♦', '♣']
+    values = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
+
+    def __init__(self):
+        self.cards = [Card(s, v) for s in self.suits for v in self.values]
+        random.shuffle(self.cards)
+
+    def draw_card(self):
+        return self.cards.pop()
+
+# ----------------------
+# Player クラス
+# ----------------------
+class Player:
+    def __init__(self, name="Player"):
+        self.name = name
+        self.hand = []
+
+    def draw(self, deck):
+        card = deck.draw_card()
+        self.hand.append(card)
+        return card
+
+    def calculate_hand(self):
+        total = sum(c.get_value() for c in self.hand)
+        aces = sum(1 for c in self.hand if c.value_str == 'A')
+        while total > 21 and aces:
+            total -= 10
+            aces -= 1
+        return total
+
+    def show_hand(self, reveal_all=True):
+        cards_to_show = []
+        if reveal_all:
+            cards_to_show = self.hand
+            hidden_flags = [False]*len(self.hand)
+        else:
+            cards_to_show = self.hand
+            hidden_flags = [False] + [True]*(len(self.hand)-1)
+
+        rows = ["", "", ""]
+        for card, hidden in zip(cards_to_show, hidden_flags):
+            art = card.ascii_art(hidden)
+            for i in range(3):
+                rows[i] += art[i] + " "
+        return "\n".join(rows)
+
+# ----------------------
+# Dealer クラス
+# ----------------------
+class Dealer(Player):
+    def __init__(self):
+        super().__init__("ディーラー")
+
+    def play_turn(self, deck):
+        print("\n=== ディーラーのターン ===")
+        while self.calculate_hand() < 17:
+            print("ディーラーはヒット！")
+            time.sleep(0.8)
+            card = self.draw(deck)
+            self.animate_card_draw(card)
+            print(f"\nディーラーの手札:\n{self.show_hand(reveal_all=True)}")
+            print(f"(合計: {self.calculate_hand()})\n")
+            time.sleep(0.8)
+        if self.calculate_hand() >= 17:
+            print("ディーラーはスタンドしました。")
+            time.sleep(0.8)
+
+    def animate_card_draw(self, card):
+        art = card.ascii_art()
+        for i in range(3):
+            print(art[i])
+            time.sleep(0.1)
+
+# ----------------------
+# Game クラス
+# ----------------------
+class Game:
+    def __init__(self):
+        self.deck = Deck()
+        self.player = Player("あなた")
+        self.dealer = Dealer()
+        self.player_score = 0
+        self.dealer_score = 0
+        self.tie_count = 0
+
+    def play(self):
+        for _ in range(2):
+            self.player.draw(self.deck)
+            self.dealer.draw(self.deck)
+
+        print("\n=== あなたのターン ===")
+        while True:
+            self.clear_screen()
+            print(f"\nあなたの手札:\n{self.player.show_hand()} (合計: {self.player.calculate_hand()})")
+            print(f"ディーラーの公開カード:\n{self.dealer.show_hand(reveal_all=False)}")
+
+            if self.player.calculate_hand() == 21:
+                self.announce_winner("あなた")
+                return
+            elif self.player.calculate_hand() > 21:
+                self.announce_winner("ディーラー")
+                return
+
+            action = input("ヒット(h) か スタンド(s) を選んでください: ").lower()
+            if action == 'h':
+                card = self.player.draw(self.deck)
+                print("あなたはカードを引きました:")
+                self.animate_card_draw(card)
+                time.sleep(0.5)
+            elif action == 's':
+                break
+            else:
+                print("無効な入力です。もう一度入力してください。")
+                time.sleep(1)
+
+        print(f"\nディーラーの手札:\n{self.dealer.show_hand(reveal_all=True)} (合計: {self.dealer.calculate_hand()})")
+        self.dealer.play_turn(self.deck)
+        self.determine_winner()
+
+    def animate_card_draw(self, card):
+        art = card.ascii_art()
+        for line in art:
+            print(line)
+            time.sleep(0.1)
+
+    def determine_winner(self):
+        player_total = self.player.calculate_hand()
+        dealer_total = self.dealer.calculate_hand()
+        print(f"\n==============================")
+        print(f"最終結果: あなた {player_total} - ディーラー {dealer_total}")
+        if dealer_total > 21 or (player_total <= 21 and player_total > dealer_total):
+            self.announce_winner("あなた")
+        elif player_total > 21 or player_total < dealer_total:
+            self.announce_winner("ディーラー")
+        else:
+            self.announce_winner("引き分け")
+
+    def announce_winner(self, winner):
+        print("\n" + "="*30)
+        if winner == "引き分け":
+            print("　　　引き分けです！")
+            self.tie_count += 1
+        elif winner == "あなた":
+            print("　　　あなたの勝利です！🎉")
+            self.player_score += 1
+        else:
+            print("　　　ディーラーの勝利です！💀")
+            self.dealer_score += 1
+        print("="*30)
+        print(f"スコア: あなた {self.player_score} - {self.dealer_score} ディーラー, 引き分け {self.tie_count}\n")
+        time.sleep(1.5)
+
+    def play_again(self):
+        again = input("\nもう一度プレイしますか？ (y/n): ").lower()
+        return again == 'y'
+
+    def clear_screen(self):
+        os.system('cls' if os.name == 'nt' else 'clear')
+
+# ----------------------
+# メインループ
+# ----------------------
+def main():
+    print("=== CUIブラックジャックへようこそ！ ===\n")
+    game = Game()
+    while True:
+        game.play()
+        if not game.play_again():
+            print("ゲームを終了します。")
+            break
+
+if __name__ == "__main__":
+    main()
